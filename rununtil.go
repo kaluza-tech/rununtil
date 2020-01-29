@@ -95,22 +95,17 @@ type canceller struct {
 
 func (canc *canceller) addChannel(key string, c chan struct{}) {
 	canc.mux.Lock()
+	defer canc.mux.Unlock()
 	canc.signals[key] = c
-	canc.mux.Unlock()
-}
-
-func (canc *canceller) removeChannel(key string) {
-	canc.mux.Lock()
-	delete(canc.signals, key)
-	canc.mux.Unlock()
 }
 
 func (canc *canceller) cancelAll() {
 	canc.mux.Lock()
+	defer canc.mux.Unlock()
 	for key := range canc.signals {
 		close(canc.signals[key])
+		delete(canc.signals, key)
 	}
-	canc.mux.Unlock()
 }
 
 var globalCanceller canceller
@@ -146,7 +141,6 @@ func AwaitKillSignals(signals []os.Signal, runnerFuncs ...RunnerFunc) {
 	finish := make(chan struct{})
 	uuid := uuid.New()
 	globalCanceller.addChannel(uuid.String(), finish)
-	defer globalCanceller.removeChannel(uuid.String())
 
 	for _, runner := range runnerFuncs {
 		shutdown := runner()

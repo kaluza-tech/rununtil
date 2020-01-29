@@ -147,8 +147,18 @@ func TestRununtilCancelAll_MultipleTimes(t *testing.T) {
 }
 
 func TestRununtilCancelAll_Threadsafe(t *testing.T) {
+	var hasBeenKilledVec [100]bool
 	for idx := 0; idx < 100; idx++ {
+		cancel := rununtil.Killed(helperMakeMain(&hasBeenKilledVec[idx]))
+		cancel()
 		rununtil.CancelAll()
+	}
+	// yield control back to scheduler so that killing can actually happen
+	time.Sleep(time.Millisecond)
+	for idx, hasBeenKilled := range hasBeenKilledVec {
+		if !hasBeenKilled {
+			t.Fatalf("expected main to have been killed: %d", idx)
+		}
 	}
 }
 
